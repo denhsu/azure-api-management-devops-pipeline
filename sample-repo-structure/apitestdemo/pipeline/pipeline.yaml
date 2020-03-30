@@ -1,0 +1,40 @@
+name: $(apiName)-$(apiVersion)
+
+variables:
+  - template: pipeline.variables.yaml    
+
+trigger:
+    branches:
+      include:
+      - develop
+      - staging
+      - release
+      - master
+    paths:
+      exclude:
+        - ./*
+      include:
+      - apitestdemo/*
+
+stages:
+- stage: Deploy_Dev 
+  variables:
+    - template: pipeline.environments.yaml
+      parameters:
+        paramSet: Deploy_Dev
+  jobs:
+  - template: /modules/pipeline.deploy.yaml
+    parameters:
+      azureSubscription: ${{ variables.azureSubscription }}
+
+- stage: Deploy_QA 
+  variables:
+    - template: pipeline.environments.yaml
+      parameters:
+        paramSet: Deploy_QA
+  jobs:
+  - template: /modules/pipeline.deploy.yaml
+    parameters:
+      azureSubscription: ${{ variables.azureSubscription }}
+
+  

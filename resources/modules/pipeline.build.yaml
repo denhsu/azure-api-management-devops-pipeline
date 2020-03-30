@@ -1,0 +1,45 @@
+parameters:
+  apiName: test
+  moduleVersion: 2.0
+  moduleTier: Modules
+  moduleSolutionName: AnalysisServices_2.0
+  artifactName: $(artifactName)
+
+jobs:
+  - job: 'BuildModule_${{ parameters.moduleName }}'
+    displayName: 'Test and Build ${{ parameters.moduleName }}'
+    pool:
+      name: $(poolName)
+    workspace:
+      clean: all
+    steps:
+    - task: Pester@8
+      inputs:
+        scriptFolder: '$(System.DefaultWorkingDirectory)/${{ parameters.apiName }}/Tests/${{ parameters.apiName }}.module.tests.ps1'
+        resultsFile: '$(System.DefaultWorkingDirectory)/Test-Pester.XML'
+        run32Bit: False
+
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFormat: NUnit
+        testResultsFiles: '**/test*.xml'
+        mergeTestResults: true
+        testRunTitle: 'Build - Pester Unit Tests'
+      continueOnError: true
+
+    - task: VSBuild@1
+      displayName: 'Build Templates'
+      inputs:
+        solution: '${{ parameters.moduleTier }}/${{ parameters.apiName }}/${{ parameters.moduleSolutionName }}.sln'
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
+        clean: true
+      continueOnError: true
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifacts'
+      inputs:
+        pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: '${{ parameters.artifactName}}'
+        publishLocation: 'Container'

@@ -1,0 +1,4 @@
+variables:
+  apiName: apitestdemo
+  apiVersion: 2.0
+  poolName: 'windows-latest'

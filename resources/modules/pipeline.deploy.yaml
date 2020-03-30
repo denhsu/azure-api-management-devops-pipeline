@@ -1,0 +1,14 @@
+jobs:
+- job: 'Deploy_Module'
+  pool:
+    vmImage: $(poolName)
+  steps:
+  - download: none
+  - task: AzurePowerShell@5
+    inputs:
+      azureSubscription: ${{ parameters.azureSubscription }}
+      ScriptType: 'FilePath'
+      ScriptPath: 'DeployAPI.ps1'
+      ScriptArguments: '-APIName "$(apiName)" -Env "$(enviro)" -SAName "$(storageAccountName)" -APIMName "$(apiManagementInstanceName)"'
+      FailOnStandardError: true
+      azurePowerShellVersion: 'LatestVersion'

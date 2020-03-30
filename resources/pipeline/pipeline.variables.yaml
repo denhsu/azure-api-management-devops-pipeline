@@ -1,0 +1,4 @@
+variables:
+  apiName: { Replace with the name of your API }
+  apiVersion: 2.0
+  poolName: 'windows-latest'

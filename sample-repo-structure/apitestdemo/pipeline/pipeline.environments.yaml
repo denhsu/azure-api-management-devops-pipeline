@@ -1,0 +1,14 @@
+parameters:
+  paramSet: 'NA'
+
+variables:
+  ${{ if eq( parameters.paramSet, 'Deploy_Dev') }}:
+    storageAccountName: mystoredev
+    apiManagementInstanceName: appdev-api-dev
+    azureSubscription: 'App Dev Demo - DEV'
+    enviro: ''
+  ${{ if eq( parameters['paramSet'], 'Deploy_QA') }}:
+    storageAccountName: mystoreqa
+    apiManagementInstanceName: appdev-api-qa
+    azureSubscription: 'App Dev Demo - QA'
+    enviro: ''

@@ -1,0 +1,15 @@
+{
+    "sourceApimName": "appdev-api-demo",
+    "destinationApimName": "appdev-api-demo",
+    "resourceGroup": "APPDEV-DEM-APIM",
+    "fileFolder": "apitestdemo",
+    "apiName": "apitestdemo",
+    "baseFileName": "mydemo",
+    "policyXMLBaseUrl": "?",
+    "policyXMLSasToken": "?",
+    "includeAllRevisions": "false",
+    "paramServiceUrl": "true",
+    "paramNamedValue": "true",
+    "paramApiLoggerId": "true",
+    "paramLogResourceId": "true"
+}

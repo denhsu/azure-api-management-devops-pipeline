@@ -1,0 +1,14 @@
+parameters:
+  paramSet: 'NA'
+
+variables:
+  ${{ if eq( parameters.paramSet, 'Deploy_Dev') }}:
+    azureSubscription: '{ Replace with the Service Connection String }'
+    storageAccountName: '{ Replace with Storage Account name }'
+    apiManagementInstanceName: '{ Repalce with API Management Instance name }'
+    enviro: ''
+  ${{ if eq( parameters['paramSet'], 'Deploy_QA') }}:
+    azureSubscription: '{ Replace with the Service Connection String for the Second Evironment }'
+    storageAccountName: '{ Replace with Storage Account name }'
+    apiManagementInstanceName: '{ Repalce with API Management Instance name }'
+    enviro: ''
