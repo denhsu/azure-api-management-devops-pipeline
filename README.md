@@ -1,3 +1,5 @@
+>**NOTE** It looks like that the Extractor tool I have been using is not generating the a master template file for the API. A master template would link all the individual templates together in the correct order of deployment. As a result, it looks like that this repo is instantly obsolete, I may look in to the issue and see if there is still a need for a updated version of this repo.
+
 ## Deploy API Management API's through an Azure DevOps Pipeline
 This is a sample implementation of a Azure DevOps pipeline deployment for Azure API Management API's.
 
@@ -35,6 +37,7 @@ The solution consists of three main parts:
 As this approach is a work in progress the limitations are mostly within the current capabilites of the PowerShell deployment task recognizing the settings used during API extraction using the Extractor tool.
 * Version Sets and Revisions are currently not supported.
 * The script currently assumes that the folder containing the API templates is named the same as the API.
+* It is not aware of a Master template if the Extractor tool actually created one. See note at the top of this page.
   
 ## License
 This project is licensed under the MIT License.
