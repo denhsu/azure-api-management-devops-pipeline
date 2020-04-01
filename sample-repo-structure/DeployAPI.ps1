@@ -30,20 +30,32 @@ function GetDirectoriesToDeploy {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$folderName
+        [string]$apiName
     )
     Write-Host "Retrieving API Folders to Deploy.." -NoNewline
     
     # Check if we are deploying one specific API or "ALL"
-    if($folderName.ToLower() -eq "all")
+    if($apiName.ToLower() -eq "all")
     {
         $dirs = Get-ChildItem -Directory -Exclude .vscode
+        $dirs = $dirs.Name
+  
+        Write-Host "Ok." -ForegroundColor Green
     }
     else {
-        $dirs = Get-ChildItem -Directory -Filter $folderName
+        $files = GET-ChildItem -include "*-$($apiName)-api.template.json" -recurse
+        if($null -ne $files)
+        {
+            $dirs = $files.Directory.Name
+            # $dirs = Get-ChildItem -Directory -Filter $folderName
+            
+            Write-Host "Ok." -ForegroundColor Green
+        }
+        else {
+            $dirs = $null 
+            Write-Host "API not found, Canceling deployment." -ForegroundColor Red
+        }
     }
-
-    Write-Host "Ok." -ForegroundColor Green
 
     return $dirs
 }
@@ -357,10 +369,10 @@ $directories = GetDirectoriesToDeploy($APIName)
 foreach($apiFolder in $directories)
 {
     Write-Host
-    Write-Host "Deploying API '$apiFolder'"
-    set-location $apiFolder.Name
+    Write-Host "Deploying API in folder '$apiFolder'"
+    set-location $apiFolder
 
-    $policyFiles = CopyPolicyFilesToBlob $apiFolder.Name $storageAccount $containerName
+    $policyFiles = CopyPolicyFilesToBlob $apiFolder $storageAccount $containerName
 
     $apiParameters = GetParametersFile $Env
     if($null -eq $apiParameters) {  Exit-PSSession }
@@ -369,8 +381,8 @@ foreach($apiFolder in $directories)
     foreach($template in $deploymentItems) {
         if($template -eq "folder") { 
             Write-Host "-  Locating the API template file..." -NoNewline
-            $template = $apiFolder.Name 
-            $templateFile = Get-ChildItem $("*" + $apiFolder.Name + "*") -include *-api.template.json  -Recurse
+            $template = $apiFolder
+            $templateFile = Get-ChildItem $("*" + $APIName + "*") -include *-api.template.json  -Recurse
         }
         else {
             Write-Host $("-  Locating $template file...") -NoNewline
@@ -381,7 +393,7 @@ foreach($apiFolder in $directories)
         { 
             Write-Host "Ok." -ForegroundColor Green
           
-            DeployToAzure $apiFolder.Name $template $templateFile $apiParameters $storageToken $apimInstance
+            DeployToAzure $apiFolder $template $templateFile $apiParameters $storageToken $apimInstance
         }
         else
         {
@@ -391,5 +403,5 @@ foreach($apiFolder in $directories)
  
     Set-Location ..
 
-    RemovePolicyFilesFromBlob $apiFolder.Name $storageAccount $containerName $policyFiles
+    RemovePolicyFilesFromBlob $apiFolder $storageAccount $containerName $policyFiles
 }
