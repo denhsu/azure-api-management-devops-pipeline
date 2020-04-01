@@ -30,20 +30,32 @@ function GetDirectoriesToDeploy {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$folderName
+        [string]$apiName
     )
     Write-Host "Retrieving API Folders to Deploy.." -NoNewline
     
     # Check if we are deploying one specific API or "ALL"
-    if($folderName.ToLower() -eq "all")
+    if($apiName.ToLower() -eq "all")
     {
         $dirs = Get-ChildItem -Directory -Exclude .vscode
+        $dirs = $dirs.Name
+  
+        Write-Host "Ok." -ForegroundColor Green
     }
     else {
-        $dirs = Get-ChildItem -Directory -Filter $folderName
+        $files = GET-ChildItem -include "*-$($apiName)-api.template.json" -recurse
+        if($null -ne $files)
+        {
+            $dirs = $files.Directory.Name
+            # $dirs = Get-ChildItem -Directory -Filter $folderName
+            
+            Write-Host "Ok." -ForegroundColor Green
+        }
+        else {
+            $dirs = $null 
+            Write-Host "API not found, Canceling deployment." -ForegroundColor Red
+        }
     }
-
-    Write-Host "Ok." -ForegroundColor Green
 
     return $dirs
 }
@@ -246,11 +258,21 @@ function GenerateSASToken {
 
     Write-Host "Generating Container SAS-Token..." -NoNewline
     $storageContext = New-AzStorageContext -ConnectionString $storageAccount.Context.ConnectionString
+
+    # Does the "policies" container exists
+    $result = Get-AzStorageContainer -Name $containerName -Context $storageContext
+    if($null -eq $result)
+    {
+        # Create a new storage container
+        $result = New-AzStorageContainer -Context $storageContext -Name $containerName -Permission Off
+    }
+
+    # Get the SAS token for the container, Read only
     $result = New-AzStorageContainerSASToken `
         -Name $containerName `
         -Permission "r" `
         -Context $storageContext `
-        -ExpiryTime $dateTime.AddHours(1)
+        -ExpiryTime $dateTime.AddMinutes($sasTokenLifeTime)
     
     if($null -ne $result) {
         Write-Host "Ok." -ForegroundColor Green  
@@ -327,7 +349,8 @@ function RemovePolicyFilesFromBlob {
     Write-Host "Ok." -ForegroundColor Green
 }
 
-$containerName = "policies"
+$sasTokenLifeTime = 30          # Life time of the Storage container SAS Token in minutes
+$containerName = "policies"     # The Storage container name
 $deploymentItems = "tags", "loggers", "products", "namedValues", "authorizationServers","apiversionsets","globalServicePolicy", "backends", "folder"
 #$deploymentItems =  "folder"
 $dateTime = Get-Date
@@ -346,10 +369,10 @@ $directories = GetDirectoriesToDeploy($APIName)
 foreach($apiFolder in $directories)
 {
     Write-Host
-    Write-Host "Deploying API '$apiFolder'"
-    set-location $apiFolder.Name
+    Write-Host "Deploying API in folder '$apiFolder'"
+    set-location $apiFolder
 
-    $policyFiles = CopyPolicyFilesToBlob $apiFolder.Name $storageAccount $containerName
+    $policyFiles = CopyPolicyFilesToBlob $apiFolder $storageAccount $containerName
 
     $apiParameters = GetParametersFile $Env
     if($null -eq $apiParameters) {  Exit-PSSession }
@@ -358,8 +381,8 @@ foreach($apiFolder in $directories)
     foreach($template in $deploymentItems) {
         if($template -eq "folder") { 
             Write-Host "-  Locating the API template file..." -NoNewline
-            $template = $apiFolder.Name 
-            $templateFile = Get-ChildItem $("*" + $apiFolder.Name + "*") -include *-api.template.json  -Recurse
+            $template = $apiFolder
+            $templateFile = Get-ChildItem $("*" + $APIName + "*") -include *-api.template.json  -Recurse
         }
         else {
             Write-Host $("-  Locating $template file...") -NoNewline
@@ -370,7 +393,7 @@ foreach($apiFolder in $directories)
         { 
             Write-Host "Ok." -ForegroundColor Green
           
-            DeployToAzure $apiFolder.Name $template $templateFile $apiParameters $storageToken $apimInstance
+            DeployToAzure $apiFolder $template $templateFile $apiParameters $storageToken $apimInstance
         }
         else
         {
@@ -380,7 +403,5 @@ foreach($apiFolder in $directories)
  
     Set-Location ..
 
-    RemovePolicyFilesFromBlob $apiFolder.Name $storageAccount $containerName $policyFiles
+    RemovePolicyFilesFromBlob $apiFolder $storageAccount $containerName $policyFiles
 }
-
-
