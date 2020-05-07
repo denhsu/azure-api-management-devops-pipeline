@@ -1,5 +1,3 @@
->**NOTE** It looks like that the Extractor tool I have been using is not generating a master template file for the API. A master template would link all the individual templates together in the correct order of deployment. As a result, it looks like that this repo is instantly obsolete, I may look in to the issue and see if there is still a need for a updated version of this repo.
-
 ## Deploy API Management API's through an Azure DevOps Pipeline
 This is a sample implementation of a Azure DevOps pipeline deployment for Azure API Management API's.
 
