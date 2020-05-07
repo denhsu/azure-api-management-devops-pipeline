@@ -35,7 +35,6 @@ The solution consists of three main parts:
 
 ## Known Limitations
 As this approach is a work in progress the limitations are mostly within the current capabilites of the PowerShell deployment task recognizing the settings used during API extraction using the Extractor tool.
-* Version Sets and Revisions are currently not supported.
   
 ## License
 This project is licensed under the MIT License.

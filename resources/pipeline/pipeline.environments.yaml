@@ -6,9 +6,11 @@ variables:
     azureSubscription: '{ Replace with the Service Connection String }'
     storageAccountName: '{ Replace with Storage Account name }'
     apiManagementInstanceName: '{ Repalce with API Management Instance name }'
+    deploymentType: "master"
     enviro: ''
   ${{ if eq( parameters['paramSet'], 'Deploy_QA') }}:
     azureSubscription: '{ Replace with the Service Connection String for the Second Evironment }'
     storageAccountName: '{ Replace with Storage Account name }'
     apiManagementInstanceName: '{ Repalce with API Management Instance name }'
     enviro: ''
+    deploymentType: "master"

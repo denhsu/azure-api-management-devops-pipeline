@@ -7,8 +7,10 @@ variables:
     apiManagementInstanceName: appdev-api-dev
     azureSubscription: 'App Dev Demo - DEV'
     enviro: ''
+    deploymentType: "master"
   ${{ if eq( parameters['paramSet'], 'Deploy_QA') }}:
     storageAccountName: mystoreqa
     apiManagementInstanceName: appdev-api-qa
     azureSubscription: 'App Dev Demo - QA'
     enviro: ''
+    deploymentType: "master"

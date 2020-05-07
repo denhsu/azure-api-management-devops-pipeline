@@ -101,6 +101,11 @@ Open the **pipeline.environments.yaml** file and change the following variables 
 
 * **enviro** contains a environment indentification which is used as a postfix for the ARM template parameters file of your API.
 
+* **deploymentType** controls what is being deployed to API Management. There are three settings to choose from:
+  * **master** deploys the master template and all its template dependencies. These dependencies include policies, tags, products, named values etc. If the API was extracted without generating a master template then the deployment will not deploy anything.
+  * **api** deploys the api specific template and its dependencies. These dependencies are limited to policies, version sets, and backends only. If the instance level elements like tags, products etc are missing on the target API Management instance, the deployment will fail with a missing resources error.
+  * **instance** deploys only the API Management instance level elements like tags, products, authorization servers, loggers, named values, and global policy.
+
 The Extractor tool generates a default parameters.json file containing the required parameters needed for deploying the ARM Templates. Most of these parameters do not need to be changed as the deployment process will automatically override these parameters.
 However, if you choose to further enhance the ARM Templates with additional variables, you can do so for each environment you want to deploy to by cloning the parameters file.
 

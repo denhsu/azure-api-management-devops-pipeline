@@ -5,6 +5,8 @@
     "fileFolder": "apitestdemo",
     "apiName": "apitestdemo",
     "baseFileName": "mydemo",
+    "linkedTemplatesBaseUrl": "?",
+    "linkedTemplatesSasToken": "?",
     "policyXMLBaseUrl": "?",
     "policyXMLSasToken": "?",
     "includeAllRevisions": "false",

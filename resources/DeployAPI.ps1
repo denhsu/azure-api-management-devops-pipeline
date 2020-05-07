@@ -7,6 +7,10 @@
 [CmdletBinding()]
 param
 (
+    # Deployment Type
+    [Parameter(Mandatory=$true)]
+    [String] $Deploy,
+
     # Storage Account Name
     [Parameter(Mandatory = $true)]
     [String] $SAName,
@@ -33,6 +37,9 @@ function GetDirectoriesToDeploy {
         [string]$apiName
     )
     Write-Host "Retrieving API Folders to Deploy.." -NoNewline
+
+    # Get Current Directory
+    $loc = Get-Location
     
     # Check if we are deploying one specific API or "ALL"
     if($apiName.ToLower() -eq "all")
@@ -43,11 +50,18 @@ function GetDirectoriesToDeploy {
         Write-Host "Ok." -ForegroundColor Green
     }
     else {
-        $files = GET-ChildItem -include "*-$($apiName)-api.template.json" -recurse
+        $files = GET-ChildItem -include "*-$($apiName)-api.template.json", "*$($apiName);rev=*-api.template.json" -recurse
         if($null -ne $files)
         {
-            $dirs = $files.Directory.Name
-            # $dirs = Get-ChildItem -Directory -Filter $folderName
+            $dirs = @()
+            $selectedDirs = $files.VersionInfo.FileName.SubString($loc.Path.Length + 1)
+            
+            foreach($directory in $selectedDirs) 
+            {
+                $dirs += $directory.split('\')[0]
+            }
+
+            $dirs = $dirs | Select-Object -Unique
             
             Write-Host "Ok." -ForegroundColor Green
         }
@@ -158,6 +172,11 @@ function DeployToAzure {
 
     $paramSet = BuildParametersFromTemplate $templateFile $parameters
 
+    if($Deploy -eq "master")
+    {
+        $paramSet["LinkedTemplatesBaseUrl"] = "https://$($SAName).blob.core.windows.net/$($containerName)/$($folderName)"
+        $paramSet["LinkedTemplatesSasToken"] = $containerToken
+    }
 
     Write-Host "   - Deploying API Template file: $($templateFile.Name)..." -NoNewline
     $result = New-AzResourceGroupDeployment `
@@ -312,6 +331,13 @@ function CopyPolicyFilesToBlob {
                 -Blob "$($folder)/$($file.Name)" `
                 -Context $storageAccount.Context `
                 -Force
+            if($null -eq $result) {
+                Write-Host "x" -ForgroundColor Red -NoNewLine
+            }
+            else
+            {
+                Write-Host "." -NoNewLine
+            }
         }
         Write-Host "Ok." -ForegroundColor Green  
     }
@@ -321,7 +347,46 @@ function CopyPolicyFilesToBlob {
 
     return $Files
 }
-function RemovePolicyFilesFromBlob {
+
+function CopyTemplateFilesToBlob {
+    [CmdletBinding()]
+    param(
+        # API Folder
+        [Parameter(Mandatory)]
+        [object] $folder,        
+        # Storage Account Object
+        [Parameter(Mandatory)]
+        [object] $storageAccount,
+        # The Blob Storage Container where the files are located
+        [Parameter(Mandatory)]
+        [string] $containerName
+    )
+
+    Write-Host "-  Retrieving the Template Files..." -NoNewline
+    $files = Get-ChildItem *.template.json -exclude *master.template.json
+    Write-Host "Ok." -ForegroundColor Green
+
+    Write-Host "-  Copying Template files to Blob Storage..." -NoNewline
+    foreach($file in $files) {
+        $result = Set-AzStorageBlobContent -File  ".\$($file.Name)" `
+            -Container $containerName `
+            -Blob "$($folder)/$($file.Name)" `
+            -Context $storageAccount.Context `
+            -Force
+        if($null -eq $result) {
+            Write-Host "x" -ForgroundColor Red -NoNewLine
+        }
+        else
+        {
+            Write-Host "." -NoNewLine
+        }
+    }
+    Write-Host "Ok." -ForegroundColor Green  
+
+    return $Files
+}
+
+function RemoveFilesFromBlob {
     [CmdletBinding()]
     param(
         # API Folder
@@ -338,7 +403,6 @@ function RemovePolicyFilesFromBlob {
         [object] $files
     )
 
-    Write-Host "-  Removing Policy file from Blob Storage..." -NoNewline
     foreach($file in $files) {
         Remove-AzStorageBlob `
         -Container $containerName `
@@ -349,22 +413,75 @@ function RemovePolicyFilesFromBlob {
     Write-Host "Ok." -ForegroundColor Green
 }
 
+function IsRevisionMasterFolderPresent {
+    $result = Get-ChildItem -Directory -filter RevisionMasterFolder
+
+    if( $null -ne $result)
+    {
+        return $true
+    }
+    else {
+        return $false
+    }
+}
+
+function ValidateParameters {
+    if($Deploy -notin @("master", "api", "instance"))
+    {
+        Write-Host "Missing or incorrect Deploy parameter value: The valid values for the 'Deploy' parameter are: master, api, instance" -ForegroundColor Red
+        Exit
+    }
+
+    if($null -eq $APIMName)
+    {
+        Write-Host "Missing or incorrect APIMName parameter value: The 'APMName' parameter requires the name of an existing API Management Instance" -ForegroundColor Red
+        Exit  
+    }
+
+    if($null -eq $SAName)
+    {
+        Write-Host "Missing or incorrect SAName parameter value: The 'SAName' parameter requires the name of an existing Azure Storage Account" -ForegroundColor Red
+        Exit  
+    }
+
+    if($null -eq $APIName -and $APIName.ToLower() -ne "all")
+    {
+        Write-Host "Missing or incorrect APIName parameter value: The 'APIName' parameter requires the name of an api folder or 'all'" -ForegroundColor Red
+        Exit  
+    }
+}
+
+function GetDeploymentItems {
+    if($Deploy.ToLower() -eq "instance")
+    {   
+        return "tags", "loggers", "products", "namedValues", "authorizationServers","globalServicePolicy"
+    } 
+    elseif ($Deploy.ToLower() -eq "api") {
+        return "apiversionsets", "backends", "api"
+    }
+    else {
+        return $Deploy.ToLower()
+    }
+}
+
 $sasTokenLifeTime = 30          # Life time of the Storage container SAS Token in minutes
 $containerName = "policies"     # The Storage container name
-$deploymentItems = "tags", "loggers", "products", "namedValues", "authorizationServers","apiversionsets","globalServicePolicy", "backends", "folder"
-#$deploymentItems =  "folder"
 $dateTime = Get-Date
 
+# Check whether all parameters are provided
+ValidateParameters
+
 $apimInstance = GetAPIManagementInstance $APIMName
-if($null -eq $apimInstance) {  Exit-PSSession } 
+if($null -eq $apimInstance) {  Exit } 
 
 $storageAccount = GetStorageAccount $SAName
-if($null -eq $apimInstance) {  Exit-PSSession }
+if($null -eq $apimInstance) {  Exit }
 
 $storageToken = GenerateSASToken $storageAccount
-if($null -eq $apimInstance) {  Exit-PSSession }
+if($null -eq $apimInstance) {  Exit }
 
 $directories = GetDirectoriesToDeploy($APIName)
+$inRevisionFolder = $false
 
 foreach($apiFolder in $directories)
 {
@@ -372,17 +489,42 @@ foreach($apiFolder in $directories)
     Write-Host "Deploying API in folder '$apiFolder'"
     set-location $apiFolder
 
+    ## if there is a Master revision folder
+    ## we'll make the master folder the focus.
+    if(IsRevisionMasterFolderPresent -eq $true)
+    {
+        set-location 'RevisionMasterFolder'
+        $inRevisionFolder = $true
+    }
+    else 
+    {
+        $inRevisionFolder = $false
+    }
+
+    # What do we need to copy
+    # if the Deployment is set to master, we need to copy arm templates and policies
+    # if the Deployment is set to api we only need to copy the policies
+    # if the Deployment is set to instance we only need to copy the policies
     $policyFiles = CopyPolicyFilesToBlob $apiFolder $storageAccount $containerName
 
+    if($Deploy -eq "master") {
+        $templateFiles = CopyTemplateFilesToBlob $apiFolder $storageAccount $containerName
+    }
+
     $apiParameters = GetParametersFile $Env
-    if($null -eq $apiParameters) {  Exit-PSSession }
+    if($null -eq $apiParameters) {  Exit }
 
     # Deploying templates
-    foreach($template in $deploymentItems) {
-        if($template -eq "folder") { 
+    foreach($template in GetDeploymentItems) {
+        if($template -eq "api") { 
             Write-Host "-  Locating the API template file..." -NoNewline
             $template = $apiFolder
-            $templateFile = Get-ChildItem $("*" + $APIName + "*") -include *-api.template.json  -Recurse
+            $templateFile = Get-ChildItem * -include "*-api.template.json", "*-apis.template.json"
+        }
+        elseif ($template -eq "master") {
+            Write-Host "-  Locating the Master template file..." -NoNewline
+            $template = $apiFolder
+            $templateFile = Get-ChildItem * -include "*master.template.json"
         }
         else {
             Write-Host $("-  Locating $template file...") -NoNewline
@@ -401,7 +543,20 @@ foreach($apiFolder in $directories)
         }
     }
  
+    if($inRevisionFolder -eq $true)
+    {
+        # Backup to the main API folder
+        Set-Location ..
+    }
+
     Set-Location ..
 
-    RemovePolicyFilesFromBlob $apiFolder $storageAccount $containerName $policyFiles
+    Write-Host "-  Removing Policy files from Blob Storage..." -NoNewline
+    RemoveFilesFromBlob $apiFolder $storageAccount $containerName $policyFiles
+
+    if($Deploy.ToLower() -eq "master")
+    {
+        Write-Host "-  Removing Template files from Blob Storage..." -NoNewline
+        RemoveFilesFromBlob $apiFolder $storageAccount $containerName $templateFiles
+    }
 }

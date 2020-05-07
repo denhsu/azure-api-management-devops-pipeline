@@ -9,6 +9,6 @@ jobs:
       azureSubscription: ${{ parameters.azureSubscription }}
       ScriptType: 'FilePath'
       ScriptPath: 'DeployAPI.ps1'
-      ScriptArguments: '-APIName "$(apiName)" -Env "$(enviro)" -SAName "$(storageAccountName)" -APIMName "$(apiManagementInstanceName)"'
+      ScriptArguments: '-APIName "$(apiName)" -Env "$(enviro)" -SAName "$(storageAccountName)" -APIMName "$(apiManagementInstanceName)" -Deploy "$(deploymentType)"'
       FailOnStandardError: true
       azurePowerShellVersion: 'LatestVersion'
